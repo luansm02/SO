@@ -41,8 +41,8 @@ void preencheProdutos(Produto *p){
 }
 
 void * escrita(void *arg){
- 	char *tip = (char *)arg;
-	printf ("Thread %s CRIADA!\n",tip);
+ 	int tip = *(int *)arg;
+	printf ("Thread %d CRIADA!\n",tip);
 
 	int index = rand()%10;
 	float novoPreco = 1.0 + rand() * (10.0 - 1.0) / RAND_MAX;
@@ -51,7 +51,7 @@ void * escrita(void *arg){
 	sem_wait(&semRCritica);
 	sem_wait(&semControleEL);
 	nEscritores++;
- 	printf("(escrita) - Thread %s atualizando preco do item id:%i de %.2f para %.2f\n",tip, prod[index].id, prod[index].preco, novoPreco);
+ 	printf("(escrita) - Thread %d atualizando preco do item id:%i de %.2f para %.2f\n",tip, prod[index].id, prod[index].preco, novoPreco);
  	sleep(2);
  	prod[index].preco = novoPreco;//sessao critica principal
  	nEscritores--;
@@ -59,16 +59,16 @@ void * escrita(void *arg){
  	sem_post(&semRCritica);
  	sem_post(&semEscrita);
 
- 	printf("Atualizado com sucesso (Thread %s): id:%i nome:%s preco:%.2f\n",tip, prod[index].id, prod[index].nome, prod[index].preco);
- 	printf ("Thread %s Terminou!\n",tip);
+ 	printf("Atualizado com sucesso (Thread %d): id:%i nome:%s preco:%.2f\n",tip, prod[index].id, prod[index].nome, prod[index].preco);
+ 	printf ("Thread %d Terminou!\n",tip);
 	
 	
  	pthread_exit(NULL);
 }
 
 void * leitura(void *arg){
-	char *tip = (char*)arg;
-	printf ("Thread %s CRIADA!\n",tip);
+	int tip = *(int*)arg;
+	printf ("Thread %d CRIADA!\n",tip);
 	
 	//int valor; sem_getvalue(&semEscrita,&valor);
 	pthread_mutex_lock(&leh);//Fecha acesso ao nLeitor
@@ -78,16 +78,16 @@ void * leitura(void *arg){
 	while(valor==0){sem_getvalue(&semControleEL,&valor);} //Enquanto o semaforo nao desabilitar, fica travado
 
 	//if(nEscritores>0)sem_wait(&semControleEL);// Se houver escritores ativos, 
-	printf("(leitura) - A thread %s emitindo nota\n", tip);
+	printf("(leitura) - A thread %d emitindo nota\n", tip);
 	sleep(2);
 	
 	for(int i=0; i<10; i++){
- 		printf("		(Consulta %s) id:%i nome:%s preco:%.2f\n",tip,prod[i].id,prod[i].nome, prod[i].preco);
+ 		printf("		(Consulta %d) id:%i nome:%s preco:%.2f\n",tip,prod[i].id,prod[i].nome, prod[i].preco);
  	}
 	pthread_mutex_lock(&leh);//Fecha acesso ao nLeitor
 	nLeitor--;
 	pthread_mutex_unlock(&leh);//Abre acesso ao nLeitor
-	printf ("X - Thread %s Terminou!\n",tip);
+	printf ("X - Thread %d Terminou!\n",tip);
 	
 	pthread_exit(NULL);
 }
@@ -108,17 +108,16 @@ int main (int argc, char *argv[]){
 	sem_init (& semControleEL, 0, 1);
 	sem_init (& semRCritica, 0, 1);
 	pthread_mutex_init(&leh, NULL);
-
-	retorno = pthread_create (&thread_id[0], NULL, escrita, (void*)"T0-escritor");if(retorno!=0)printf("Erro na criacao da Thread 0!");
-	retorno = pthread_create (&thread_id[1], NULL, leitura, (void*)"T1-leitor");if(retorno!=0)printf("Erro na criacao da Thread 1!");
-	retorno = pthread_create (&thread_id[2], NULL, escrita, (void*)"T2-escritor");if(retorno!=0)printf("Erro na criacao da Thread 2!");
-	retorno = pthread_create (&thread_id[3], NULL, leitura, (void*)"T3-leitor");if(retorno!=0)printf("Erro na criacao da Thread 3!");
-	retorno = pthread_create (&thread_id[4], NULL, escrita, (void*)"T4-escritor");if(retorno!=0)printf("Erro na criacao da Thread 4!");
-	retorno = pthread_create (&thread_id[5], NULL, leitura, (void*)"T5-leitor");if(retorno!=0)printf("Erro na criacao da Thread 5!");
-	retorno = pthread_create (&thread_id[6], NULL, escrita, (void*)"T6-escritor");if(retorno!=0)printf("Erro na criacao da Thread 6!");
-	retorno = pthread_create (&thread_id[7], NULL, leitura, (void*)"T7-leitor");if(retorno!=0)printf("Erro na criacao da Thread 7!");
-	retorno = pthread_create (&thread_id[8], NULL, escrita, (void*)"T8-escritor");if(retorno!=0)printf("Erro na criacao da Thread 8!");
-	retorno = pthread_create (&thread_id[9], NULL, leitura, (void*)"T9-leitor");if(retorno!=0)printf("Erro na criacao da Thread 9!");
+	
+	for(int j = 0; j<nthread; j++){
+		if(j%2==0){
+			pthread_create(&thread_id[j], NULL, escrita, (void*)&j);
+		}
+		else{
+			pthread_create (&thread_id[j], NULL, leitura, (void*)&j);
+		}
+		usleep(rand()%100);
+	} 
 	
 	//Destruicao de semaforos e mutex
 	sem_destroy(&semEscrita);
