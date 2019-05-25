@@ -38,7 +38,7 @@ void preencheProdutos(Produto *p){
 
 void * escrita(void *arg){
  	int tip = *(int*) arg; //tip = nome da thread
-	printf ("O - Thread %d CRIADA!\n",tip);
+	printf ("Thread %d CRIADA!\n",tip);
 
 	int index = rand()%10;
 	
@@ -49,11 +49,11 @@ void * escrita(void *arg){
  	printf("(escrita/Time:%d) - Thread %d atualizando preco do item id:%i de %.2f para %.2f(...)\n",time,tip, prod[index].id, prod[index].preco, novoPreco);
  	sleep(time);
  	prod[index].preco = novoPreco;	//Atribui o novo preco
- 	printf("Atualizado com sucesso (Thread %d): id:%i nome:%s preco:%.2f\n",tip, prod[index].id, prod[index].nome, prod[index].preco);
+ 	printf("Atualizado com sucesso! (T-%d): id:%i nome:%s preco:%.2f\n",tip, prod[index].id, prod[index].nome, prod[index].preco);
 
  	sem_post(&semEscrita);//Desbloqueia Thread / incrementa
 
- 	printf ("X - Thread %d Terminou!\n",tip);
+ 	printf ("Thread_%d_escritor Terminou!\n",tip);
 	
 	
  	pthread_exit(NULL);
@@ -61,17 +61,17 @@ void * escrita(void *arg){
 
 void * leitura(void *arg){
 	int tip = *(int*) arg;//tip = nome da thread
+	printf ("Thread_%d_leitor CRIADA!\n",tip);	
 	
-	printf ("O - Thread %d CRIADA!\n",tip);	
 	int time = rand()%4;
-	printf("(leitura/Time:%d) - A thread %d emitindo nota(...)\n", time,tip);
+	printf("(Time:%d) - Thread_%d_leitor emitindo nota(...)\n", time,tip);
 	sleep(time);
 	//Imprime Consulta Completa
 	for(int i=0; i<10; i++){
- 		printf("		(Consulta %d) id:%i nome:***** preco:%.2f\n",tip,prod[i].id, prod[i].preco);
+ 		printf("		(Consulta T-%d) id:%i nome:***** preco:%.2f\n",tip,prod[i].id, prod[i].preco);
  	}
 		
-	printf ("X - Thread %d Terminou!\n",tip);
+	printf ("Thread_%d_leitor Terminou!\n",tip);
 	
 	pthread_exit(NULL);
 }
@@ -83,9 +83,8 @@ int main (int argc, char *argv[]){
 	int retorno;						//retorno-> verifica se Create deu certo
 	preencheProdutos(prod);				// Preenche o vetor de struct com valor pre-definidos
 		
-	printf("****Versao sem Prioridade (Leitura Suja)****\n");
-	printf("OBS: O - criacao / X - Exclusao\n\n");
-
+	printf("****Versao sem Prioridade (Leitura Suja)****\n\n");
+	
 	sem_init (& semEscrita, 0, 1); //inicia semaforo semEscrita
 	
 	//Cria Threads 

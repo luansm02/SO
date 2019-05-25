@@ -11,13 +11,13 @@
 
 using namespace std;
 
-#define nthread 10 // considerando que o id de thread comeca de 0 ate 9
+#define nthread 10 
 
-sem_t semEscrita;
-sem_t semControleEL;
-sem_t semRCritica;//para versao Completa
-pthread_mutex_t leh;
-int nEscritores,nLeitor;
+
+pthread_mutex_t mutex_cont;
+pthread_mutex_t l;
+pthread_mutex_t e;   
+int cont = 0 ;
 
 typedef struct stc_produto{
 	int id;
@@ -41,91 +41,77 @@ void preencheProdutos(Produto *p){
 }
 
 void * escrita(void *arg){
- 	int tip = *(int *)arg;
-	printf ("Thread %d CRIADA!\n",tip);
+    int tip = *(int*) arg,index,time = rand()%4;
+    float novoPreco,precoAntigo;
 
-	int index = rand()%10;
-	float novoPreco = 1.0 + rand() * (10.0 - 1.0) / RAND_MAX;
-	
-	sem_wait(&semEscrita);
-	sem_wait(&semRCritica);
-	sem_wait(&semControleEL);
-	nEscritores++;
- 	printf("(escrita) - Thread %d atualizando preco do item id:%i de %.2f para %.2f\n",tip, prod[index].id, prod[index].preco, novoPreco);
- 	sleep(2);
- 	prod[index].preco = novoPreco;//sessao critica principal
- 	nEscritores--;
- 	sem_post(&semControleEL);
- 	sem_post(&semRCritica);
- 	sem_post(&semEscrita);
+    printf("Thread_%d_escritor CRIADA!\n",tip);
 
- 	printf("Atualizado com sucesso (Thread %d): id:%i nome:%s preco:%.2f\n",tip, prod[index].id, prod[index].nome, prod[index].preco);
- 	printf ("Thread %d Terminou!\n",tip);
+    pthread_mutex_lock(&mutex_cont);
+    cont++;
+    if(cont==1)pthread_mutex_lock(&l);
+    pthread_mutex_unlock(&mutex_cont);
+
+    pthread_mutex_lock(&e);
+
+    printf("(time:%d)Thread_%d_escritor solicitando Escrita (...)\n",time,tip);
+    sleep(time);
+    
+    index = rand()%10;
+	novoPreco = 1.0 + rand() * (10.0 - 1.0) / RAND_MAX;
 	
-	
- 	pthread_exit(NULL);
+    precoAntigo = prod[index].preco;
+    prod[index].preco = novoPreco;
+    printf("A Thread_%d_escritor alterou o preco do %s de %.2f para %.2f\n",tip,prod[index].nome,precoAntigo,prod[index].preco);
+
+    pthread_mutex_unlock(&e);
+
+    pthread_mutex_lock(&mutex_cont);
+    cont--;
+    if(cont==0){pthread_mutex_unlock(&l);}
+    pthread_mutex_unlock(&mutex_cont);
+    printf("Thread_%d_escritor TERMINADA!\n",tip);
 }
 
 void * leitura(void *arg){
-	int tip = *(int*)arg;
-	printf ("Thread %d CRIADA!\n",tip);
-	
-	//int valor; sem_getvalue(&semEscrita,&valor);
-	pthread_mutex_lock(&leh);//Fecha acesso ao nLeitor
-	nLeitor++;
-	pthread_mutex_unlock(&leh);//Abre acesso ao nLeitor
-	int valor;sem_getvalue(&semControleEL,&valor);
-	while(valor==0){sem_getvalue(&semControleEL,&valor);} //Enquanto o semaforo nao desabilitar, fica travado
+        
+    int tip = *(int*) arg;
+    int time = rand()%4;    //tempo aleatorio 
+    printf("Thread_%d_leitor CRIADA!\n",tip);
 
-	//if(nEscritores>0)sem_wait(&semControleEL);// Se houver escritores ativos, 
-	printf("(leitura) - A thread %d emitindo nota\n", tip);
-	sleep(2);
-	
-	for(int i=0; i<10; i++){
- 		printf("		(Consulta %d) id:%i nome:%s preco:%.2f\n",tip,prod[i].id,prod[i].nome, prod[i].preco);
+    pthread_mutex_lock(&l);
+    printf("(leitura/time:%d)Thread %d emitindo nota(...)\n",time,tip);
+    sleep(time);
+    for(int i=0; i<10; i++){
+ 		printf("		(Consulta T-%d) id:%i nome:%s preco:%.2f\n",tip,prod[i].id,prod[i].nome, prod[i].preco);
+        sleep(0.5);
  	}
-	pthread_mutex_lock(&leh);//Fecha acesso ao nLeitor
-	nLeitor--;
-	pthread_mutex_unlock(&leh);//Abre acesso ao nLeitor
-	printf ("X - Thread %d Terminou!\n",tip);
-	
-	pthread_exit(NULL);
+    pthread_mutex_unlock(&l);
+    printf("Thread_%d_leitor TERMINADA!\n",tip);
+
 }
 
+int main(){
 
-int main (int argc, char *argv[]){
-
-	pthread_t thread_id[nthread];		//Vetor de Thread nThred = 10
+    pthread_t thread_id[nthread];		//Vetor de Thread nThred = 10
 	int retorno;						//retorno-> verifica se Create deu certo
 	preencheProdutos(prod);				// Preenche o vetor de struct com valor pre-definidos
-	nEscritores=0;
 
-	printf("****Versao Escritor com Preferencia sobre leitor****\n");
-	printf("OBS: O - criacao / X - Exclusao\n\n");
+	printf("****Versao Escritor com Preferencia sobre leitor****\n\n");
 
-	//iniciacao dos semaforos e mutex
-	sem_init (& semEscrita, 0, 1);
-	sem_init (& semControleEL, 0, 1);
-	sem_init (& semRCritica, 0, 1);
-	pthread_mutex_init(&leh, NULL);
-	
-	for(int j = 0; j<nthread; j++){
+
+    pthread_mutex_init(&mutex_cont, NULL);
+    pthread_mutex_init(&l, NULL);
+    pthread_mutex_init(&e, NULL);
+    
+    for(int j = 0; j<nthread; j++){
 		if(j%2==0){
 			pthread_create(&thread_id[j], NULL, escrita, (void*)&j);
 		}
 		else{
 			pthread_create (&thread_id[j], NULL, leitura, (void*)&j);
 		}
-		usleep(rand()%100);
-	} 
-	
-	//Destruicao de semaforos e mutex
-	sem_destroy(&semEscrita);
-	sem_destroy(&semControleEL);
-	sem_destroy(&semRCritica);
+		sleep(1);
+	}
 
-	pthread_exit(NULL);
-	
- 	return 0;
+    pthread_exit(NULL);
 }
-

@@ -36,35 +36,35 @@ void preencheProdutos(Produto *p){
 Produto prod[10];
 
 void * escrita(void *arg){
- 	char *tip = (char *)arg;	//tip = nome da Thread
-	printf ("O - Thread %s CRIADA!\n",tip);
+ 	int tip = *(char *)arg;	//tip = nome da Thread
+	printf ("Thread_%d_escritor CRIADA!\n",tip);
 
 	int index = rand()%10;
 	float novoPreco = 1.0 + rand() * (10.0 - 1.0) / RAND_MAX;
  	int time = rand()%4;	//tempo aleatorio entre 0 e 3
- 	printf("(escrita/Time:%d) - Thread %s atualizando preco do item id:%i de %.2f para %.2f(...)\n",time,tip, prod[index].id, prod[index].preco, novoPreco);
+ 	printf("(time:%d) - Thread_%d_escritor atualizando preco do item id:%i de %.2f para %.2f(...)\n",time,tip, prod[index].id, prod[index].preco, novoPreco);
  	sleep(time);
  	prod[index].preco = novoPreco;	//Atribuicao do novo preco(sessao critica)
- 	printf("Atualizado com sucesso (Thread %s): id:%i nome:%s preco:%.2f\n",tip, prod[index].id, prod[index].nome, prod[index].preco);
+ 	printf("Atualizado com sucesso! (T-%d): id:%i nome:%s preco:%.2f\n",tip, prod[index].id, prod[index].nome, prod[index].preco);
  
- 	printf ("X - Thread %s Terminou!\n",tip);
+ 	printf ("Thread_%d_escritor TERMINOU!\n",tip);
 	
 	
  	pthread_exit(NULL);
 }
 
 void * leitura(void *arg){
-	char *tip = (char*)arg;		//tip = nome da Thread
+	int tip = *(int*)arg;		//tip = nome da Thread
 	
-	printf ("O - Thread %s CRIADA!\n",tip);	
+	printf ("Thread_%d_leitor CRIADA!\n",tip);	
 	int time = rand()%4;
-	printf("(leitura/Time:%d) - A thread %s emitindo nota(...)\n", time,tip);
+	printf("(time:%d) - Thread_%d_leitor emitindo nota(...)\n", time,tip);
 	sleep(time);
 	//Imprime a Consulta Completa
 	for(int i=0; i<10; i++){
- 		printf("		(Consulta %s) id:%i nome:%s preco:%.2f\n",tip,prod[i].id,prod[i].nome, prod[i].preco);
+ 		printf("		(Consulta T-%d) id:%i nome:%s preco:%.2f\n",tip,prod[i].id,prod[i].nome, prod[i].preco);
  	}
-	printf ("X - Thread %s Terminou!\n",tip);
+	printf ("Thread_%d_leitor TERMINOU!\n",tip);
 	
 	pthread_exit(NULL);
 }
@@ -76,11 +76,19 @@ int main (int argc, char *argv[]){
 	int retorno;						//retorno-> verifica se Create deu certo
 	preencheProdutos(prod);				// Preenche o vetor de struct com valor pre-definidos
 	
-	printf("****Versao sem controle de Concorrencia****\n");
-	printf("OBS: O - criacao / X - Exclusao\n\n");
+	printf("****Versao sem controle de Concorrencia****\n\n");
 
 	//Cria Threads e verifica se deu certo
-
+	for(int j = 0; j<nthread; j++){
+		if(j%2==0){
+			pthread_create(&thread_id[j], NULL, escrita, (void*)&j);
+		}
+		else{
+			pthread_create (&thread_id[j], NULL, leitura, (void*)&j);
+		}
+		sleep(1);
+	}
+	/*
 	retorno = pthread_create (&thread_id[0], NULL, escrita, (void*)"T0-escritor");if(retorno!=0)printf("Erro na criacao da Thread 0!");
 	retorno = pthread_create (&thread_id[1], NULL, leitura, (void*)"T1-leitor");if(retorno!=0)printf("Erro na criacao da Thread 1!");
 	retorno = pthread_create (&thread_id[2], NULL, escrita, (void*)"T2-escritor");if(retorno!=0)printf("Erro na criacao da Thread 2!");
@@ -91,7 +99,7 @@ int main (int argc, char *argv[]){
 	retorno = pthread_create (&thread_id[7], NULL, leitura, (void*)"T7-leitor");if(retorno!=0)printf("Erro na criacao da Thread 7!");
 	retorno = pthread_create (&thread_id[8], NULL, escrita, (void*)"T8-escritor");if(retorno!=0)printf("Erro na criacao da Thread 8!");
 	retorno = pthread_create (&thread_id[9], NULL, leitura, (void*)"T9-leitor");if(retorno!=0)printf("Erro na criacao da Thread 9!");
-	
+	*/
 	pthread_exit(NULL);
 	
  	return 0;
